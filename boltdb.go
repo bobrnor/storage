@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"log"
 	"time"
 
@@ -51,6 +52,17 @@ func CreateBoltDB(path, bucket string) *BoltDB {
 
 // Store stores a message in BoltDB and returns its storage ID
 func (b *BoltDB) Store(m *data.Message) (string, error) {
+	return b.StoreWithNamespace(string(b.bucket), m)
+}
+
+func itob(v uint64) []byte {
+	b := make([]byte, 16)
+	binary.BigEndian.PutUint64(b, uint64(v))
+	return b
+}
+
+// Store stores a message with namespace in BoltDB and returns its storage ID
+func (b *BoltDB) StoreWithNamespace(namespace string, m *data.Message) (string, error) {
 	err := b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.bucket)
 
@@ -65,24 +77,34 @@ func (b *BoltDB) Store(m *data.Message) (string, error) {
 			return err
 		}
 
+		if string(b.bucket) != namespace {
+			nsBucket, err := tx.CreateBucketIfNotExists([]byte(namespace))
+			if err != nil {
+				return err
+			}
+
+			if err := nsBucket.Put(itob(id), buf); err != nil {
+				return err
+			}
+		}
+
 		return bucket.Put(itob(id), buf)
 	})
 
 	return string(m.ID), err
 }
 
-func itob(v uint64) []byte {
-	b := make([]byte, 16)
-	binary.BigEndian.PutUint64(b, uint64(v))
-	return b
+// Count returns the number of stored messages
+func (b *BoltDB) Count() int {
+	return b.CountWithNamespace(string(b.bucket))
 }
 
 // Count returns the number of stored messages
-func (b *BoltDB) Count() int {
+func (b *BoltDB) CountWithNamespace(namespace string) int {
 	var count int
 	err := b.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(b.bucket)
-		stats := bucket.Stats()
+		nsBucket := tx.Bucket([]byte(namespace))
+		stats := nsBucket.Stats()
 		count = stats.KeyN
 		return nil
 	})
@@ -96,6 +118,11 @@ func (b *BoltDB) Count() int {
 
 // Search finds messages matching the query
 func (b *BoltDB) Search(kind, query string, start, limit int) (*data.Messages, int, error) {
+	return b.SearchWithNamespace(string(b.bucket), kind, query, start, limit)
+}
+
+// Search finds messages matching the query
+func (b *BoltDB) SearchWithNamespace(namespace string, kind, query string, start, limit int) (*data.Messages, int, error) {
 	var matchFunc func(data.Message) bool
 	switch kind {
 	case "to":
@@ -119,9 +146,9 @@ func (b *BoltDB) Search(kind, query string, start, limit int) (*data.Messages, i
 	messages := data.Messages{}
 
 	err := b.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(b.bucket)
+		nsBucket := tx.Bucket([]byte(namespace))
 
-		c := bucket.Cursor()
+		c := nsBucket.Cursor()
 
 		var i int
 		var m data.Message
@@ -155,12 +182,17 @@ func (b *BoltDB) Search(kind, query string, start, limit int) (*data.Messages, i
 
 // List returns a list of messages by index
 func (b *BoltDB) List(start int, limit int) (*data.Messages, error) {
+	return b.ListWithNamespace(string(b.bucket), start, limit)
+}
+
+// List returns a list of messages by index
+func (b *BoltDB) ListWithNamespace(namespace string, start int, limit int) (*data.Messages, error) {
 	messages := data.Messages{}
 
 	err := b.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(b.bucket)
+		nsBucket := tx.Bucket([]byte(namespace))
 
-		c := bucket.Cursor()
+		c := nsBucket.Cursor()
 
 		var i int
 		var m data.Message
@@ -195,21 +227,54 @@ func (b *BoltDB) List(start int, limit int) (*data.Messages, error) {
 
 // DeleteOne deletes an individual message by storage ID
 func (b *BoltDB) DeleteOne(id string) error {
+	return b.DeleteAllWithNamespace(string(b.bucket))
+}
+
+// DeleteOne deletes an individual message by storage ID
+func (b *BoltDB) DeleteOneWithNamespace(namespace string, id string) error {
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
 		return err
 	}
 
 	return b.db.Update(func(tx *bolt.Tx) error {
+		idBytes := itob(idUint)
+
 		bucket := tx.Bucket(b.bucket)
-		return bucket.Delete(itob(idUint))
+
+		if string(b.bucket) != namespace {
+			nsBucket := tx.Bucket([]byte(namespace))
+
+			if err := nsBucket.Delete(idBytes); err != nil {
+				return err
+			}
+		}
+
+		return bucket.Delete(idBytes)
 	})
 }
 
 // DeleteAll deletes all messages stored in BoltDB
 func (b *BoltDB) DeleteAll() error {
+	return b.DeleteAllWithNamespace(string(b.bucket))
+}
+
+// DeleteAll deletes all messages stored in BoltDB
+func (b *BoltDB) DeleteAllWithNamespace(namespace string) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
-		if err := tx.DeleteBucket(b.bucket); err != nil {
+		if string(b.bucket) != namespace {
+			bucket := tx.Bucket(b.bucket)
+			nsBucket := tx.Bucket([]byte(namespace))
+
+			nsBucket.ForEach(func(k, v []byte) error {
+				if err := bucket.Delete(k); err != nil {
+					return err
+				}
+				return nil
+			})
+		}
+
+		if err := tx.DeleteBucket([]byte(namespace)); err != nil {
 			return err
 		}
 
@@ -220,6 +285,11 @@ func (b *BoltDB) DeleteAll() error {
 
 // Load loads an individual message by storage ID
 func (b *BoltDB) Load(id string) (*data.Message, error) {
+	return b.LoadWithNamespace(string(b.bucket), id)
+}
+
+// Load loads an individual message by storage ID
+func (b *BoltDB) LoadWithNamespace(namespace string, id string) (*data.Message, error) {
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
 		return nil, err
@@ -228,11 +298,35 @@ func (b *BoltDB) Load(id string) (*data.Message, error) {
 	result := data.Message{}
 
 	err = b.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(b.bucket)
-		buf := bucket.Get(itob(idUint))
+		nsBucket := tx.Bucket([]byte(namespace))
+
+		buf := nsBucket.Get(itob(idUint))
+
+		if len(buf) == 0 {
+			return errors.New("message not found")
+		}
 
 		return json.Unmarshal(buf, &result)
 	})
 
 	return &result, err
+}
+
+func (b *BoltDB) ListNamespaces() ([]string, error) {
+	var namespaces []string
+
+	err := b.db.View(func(tx *bolt.Tx) error {
+		return tx.ForEach(func(name []byte, _ *bolt.Bucket) error {
+			if string(b.bucket) != string(name) {
+				namespaces = append(namespaces, string(name))
+			}
+			return nil
+		})
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return namespaces, nil
 }

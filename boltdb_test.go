@@ -232,6 +232,13 @@ func TestBoltDB_Load(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "not found test",
+			args: args{
+				id: "112312",
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -263,6 +270,13 @@ func TestBoltDB_DeleteOne(t *testing.T) {
 			name: "good test",
 			args: args{
 				id: "1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "good test #2",
+			args: args{
+				id: "1234",
 			},
 			wantErr: false,
 		},

@@ -12,3 +12,14 @@ type Storage interface {
 	DeleteAll() error
 	Load(id string) (*data.Message, error)
 }
+
+type StorageWithNamespace interface {
+	StoreWithNamespace(namespace string, m *data.Message) (string, error)
+	ListWithNamespace(namespace string, start, limit int) (*data.Messages, error)
+	SearchWithNamespace(namespace string, kind, query string, start, limit int) (*data.Messages, int, error)
+	CountWithNamespace(namespace string) int
+	DeleteOneWithNamespace(namespace string, id string) error
+	DeleteAllWithNamespace(namespace string) error
+	LoadWithNamespace(namespace string, id string) (*data.Message, error)
+	ListNamespaces() ([]string, error)
+}
