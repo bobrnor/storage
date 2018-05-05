@@ -134,12 +134,8 @@ func (b *BoltDB) Search(kind, query string, start, limit int) (*data.Messages, i
 			if matchFunc(m) {
 				count++
 
-				if i >= start && i < start+limit {
+				if count >= start && count < start+limit {
 					messages = append(messages, m)
-
-					if len(messages) >= limit {
-						return nil
-					}
 				}
 			}
 
