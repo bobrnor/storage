@@ -274,11 +274,12 @@ func (b *BoltDB) DeleteAllWithNamespace(namespace string) error {
 			})
 		}
 
-		if err := tx.DeleteBucket([]byte(namespace)); err != nil {
+		ns := []byte(namespace)
+		if err := tx.DeleteBucket(ns); err != nil {
 			return err
 		}
 
-		_, err := tx.CreateBucket(b.bucket)
+		_, err := tx.CreateBucket(ns)
 		return err
 	})
 }
