@@ -317,9 +317,7 @@ func (b *BoltDB) ListNamespaces() ([]string, error) {
 
 	err := b.db.View(func(tx *bolt.Tx) error {
 		return tx.ForEach(func(name []byte, _ *bolt.Bucket) error {
-			if string(b.bucket) != string(name) {
-				namespaces = append(namespaces, string(name))
-			}
+			namespaces = append(namespaces, string(name))
 			return nil
 		})
 	})
