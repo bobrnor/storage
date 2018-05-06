@@ -11,8 +11,7 @@ import (
 
 func TestCreateBoltDB(t *testing.T) {
 	type args struct {
-		path   string
-		bucket string
+		path string
 	}
 	tests := []struct {
 		name string
@@ -21,14 +20,13 @@ func TestCreateBoltDB(t *testing.T) {
 		{
 			name: "db in tmp",
 			args: args{
-				path:   "/tmp/db",
-				bucket: "test",
+				path: "/tmp/db",
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CreateBoltDB(tt.args.path, tt.args.bucket); got == nil {
+			if got := CreateBoltDB(tt.args.path); got == nil {
 				t.Errorf("CreateBoltDB() = %v", got)
 			} else {
 				got.db.Close()
@@ -38,7 +36,7 @@ func TestCreateBoltDB(t *testing.T) {
 }
 
 func TestBoltDB_Store(t *testing.T) {
-	db := CreateBoltDB("/tmp/db", "test")
+	db := CreateBoltDB("/tmp/db")
 	defer db.db.Close()
 
 	type fields struct {
@@ -115,7 +113,7 @@ func TestBoltDB_Store(t *testing.T) {
 }
 
 func TestBoltDB_Count(t *testing.T) {
-	b := CreateBoltDB("/tmp/db", "test")
+	b := CreateBoltDB("/tmp/db")
 	defer b.db.Close()
 
 	tests := []struct {
@@ -135,7 +133,7 @@ func TestBoltDB_Count(t *testing.T) {
 }
 
 func TestBoltDB_Search(t *testing.T) {
-	b := CreateBoltDB("/tmp/db", "test")
+	b := CreateBoltDB("/tmp/db")
 	defer b.db.Close()
 
 	type args struct {
@@ -178,7 +176,7 @@ func TestBoltDB_Search(t *testing.T) {
 }
 
 func TestBoltDB_List(t *testing.T) {
-	b := CreateBoltDB("/tmp/db", "test")
+	b := CreateBoltDB("/tmp/db")
 	defer b.db.Close()
 
 	type args struct {
@@ -214,7 +212,7 @@ func TestBoltDB_List(t *testing.T) {
 }
 
 func TestBoltDB_Load(t *testing.T) {
-	b := CreateBoltDB("/tmp/db", "test")
+	b := CreateBoltDB("/tmp/db")
 	defer b.db.Close()
 
 	type args struct {
@@ -255,7 +253,7 @@ func TestBoltDB_Load(t *testing.T) {
 }
 
 func TestBoltDB_DeleteOne(t *testing.T) {
-	b := CreateBoltDB("/tmp/db", "test")
+	b := CreateBoltDB("/tmp/db")
 	defer b.db.Close()
 
 	type args struct {
@@ -291,7 +289,7 @@ func TestBoltDB_DeleteOne(t *testing.T) {
 }
 
 func TestBoltDB_DeleteAll(t *testing.T) {
-	b := CreateBoltDB("/tmp/db", "test")
+	b := CreateBoltDB("/tmp/db")
 	defer b.db.Close()
 
 	tests := []struct {

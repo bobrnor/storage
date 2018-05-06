@@ -24,7 +24,7 @@ type BoltDB struct {
 }
 
 // CreateBoltDB creates a BoltDB backed storage backend
-func CreateBoltDB(path, bucket string) *BoltDB {
+func CreateBoltDB(path string) *BoltDB {
 	db, err := bolt.Open(path, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		log.Printf("Error opening BoltDB database: %s", err)
@@ -32,7 +32,7 @@ func CreateBoltDB(path, bucket string) *BoltDB {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(bucket))
+		_, err := tx.CreateBucketIfNotExists([]byte("default"))
 		if err != nil {
 			return err
 		}
@@ -46,7 +46,7 @@ func CreateBoltDB(path, bucket string) *BoltDB {
 
 	return &BoltDB{
 		db:     db,
-		bucket: []byte(bucket),
+		bucket: []byte("default"),
 	}
 }
 
